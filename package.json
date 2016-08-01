@@ -1,0 +1,23 @@
+{
+  "name": "opennms-ksc-converter",
+  "version": "1.0.0",
+  "keywords": [
+    "util",
+    "opennms"
+  ],
+  "author": "Ronald J. Roskens <ronald.roskens@gmail.com>",
+  "license": "GPL-3.0",
+  "contributors": [],
+  "preferGlobal": true,
+  "dependencies": {
+    "lodash": "4.x",
+    "node-cache": "3.2.1",
+    "request": "^2.74.0",
+    "xml2js": "0.4.17"
+  },
+  "repository" :
+    { "type" : "git"
+    , "url" : "https://github.com/roskens/opennms-ksc-converter.git"
+  },
+  "private": true
+}
