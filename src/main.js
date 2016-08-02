@@ -4,13 +4,15 @@
  * and open the template in the editor.
  */
 
-var path = require('path');
-var util = require('util');
-var vm = require('vm');
-var fs = require('fs');
-var xml2js = require('xml2js');
-var request = require('request');
-var _ = require('lodash');
+var path = require('path'),
+    util = require('util'),
+    vm = require('vm'),
+    fs = require('fs'),
+    xml2js = require('xml2js'),
+    request = require('request'),
+    _ = require('lodash');
+
+var graphCache = {};
 
 var includeInThisContext = function (path) {
     var code = fs.readFileSync(path);
@@ -155,7 +157,7 @@ function addPanelToDashboardRow(dashboard, graphs_per_line, graph, graphDef, pId
                 "attribute": metric.attribute,
                 "aggregation": metric.aggregation,
                 "hide": metric.transient
-            })
+            });
         }
         if ('expression' in metric) {
             panel.targets.push({
@@ -163,18 +165,18 @@ function addPanelToDashboardRow(dashboard, graphs_per_line, graph, graphDef, pId
                 "label": metric.name,
                 "expression": metric.expression,
                 "hide": metric.transient
-            })
+            });
         }
-    })
-    row.panels.push(panel)
-    console.log('== panel ==')
+    });
+    row.panels.push(panel);
+    //console.log('== panel ==')
     //console.dir(panel);
     //console.log('== row ==')
     //console.dir(row);
 
-    if (graphs_per_line == 0) {
-        dashboard.rows.push(row)
-        row = createRow()
+    if (graphs_per_line === 0) {
+        dashboard.rows.push(row);
+        row = createRow();
     }
 }
 
@@ -188,19 +190,19 @@ function getGraphDefinition(name) {
         request.get({url: 'http://localhost:8980/opennms/rest/graphs/' + encodeURIComponent(name),
             auth: {'username': 'admin', 'password': 'admin'},
             json: true}, function (err, res, graphDef) {
-            if (res.statusCode == 200 && typeof (graphDef) !== 'undefined') {
-                graphCache[name] = graphDef
-                resolve(graphDef)
+            if (res.statusCode === 200 && typeof (graphDef) !== 'undefined') {
+                graphCache[name] = graphDef;
+                resolve(graphDef);
             } else {
-                reject(Error("request failed: code:" + res.statusCode))
+                reject(Error("request failed: code:" + res.statusCode));
             }
-        })
+        });
     }).then(function (value) {
-        console.log('graphCache[' + name + '] = ' + value)
-        return value
+        console.log('graphCache[' + name + '] = ' + value);
+        return value;
     }, function (error) {
-        console.error(error)
-    })
+        console.error(error);
+    });
 }
 
 function buildDashboard(report, graphs, graphDefs) {
@@ -244,19 +246,16 @@ function buildDashboard(report, graphs, graphDefs) {
                 "version": "2.0.1"
             }
         ]
-    }
+    };
 
-    console.log('var pId')
-    var pId = 1
-    console.log('graphs', graphs)
+    var pId = 1;
     _.forEach(graphs, function (graph, key) {
-        console.log('graph', graph)
-        addPanelToDashboardRow(dashboard, report['graphs_per_line'], graph, graphDefs[graph['$']['graphtype']], pId++)
-    })
-    console.log('writing out file:' + report['title'] + '.json')
-    fs.writeFile(report['title'] + '.json', JSON.stringify(dashboard, null, 2))
+        addPanelToDashboardRow(dashboard, report['graphs_per_line'], graph, graphDefs[graph['$']['graphtype']], pId++);
+    });
+    console.log('writing out file:' + report['title'] + '.json');
+    fs.writeFile(report['title'] + '.json', JSON.stringify(dashboard, null, 2));
 
-    console.log('-- end buildDashboard <' + report['title'] + '> --')
+    // console.log('-- end buildDashboard <' + report['title'] + '> --');
 }
 
 function collectGraphTypes(reportDefinition) {
@@ -283,10 +282,10 @@ function getGraphTypeDefinitions(graphTypeList) {
                     resolve(value);
                 },
                 function (error) {
-                    console.error(error)
+                    console.error(error);
                 }
         );
-    })
+    });
 }
 
 function fetchGraphType(graphType) {
@@ -294,23 +293,23 @@ function fetchGraphType(graphType) {
         request.get({url: 'http://localhost:8980/opennms/rest/graphs/' + encodeURIComponent(graphType),
             auth: {'username': 'admin', 'password': 'admin'},
             json: true}, function (err, res, graphDef) {
-            if (res.statusCode == 200) {
+            if (res.statusCode === 200) {
                 //console.log('typeof(graphDef):' + typeof(graphDef))
                 //console.dir(dashboard)
                 //console.dir(graph)
                 //console.dir(row);
 
                 if (typeof (graphDef) !== 'undefined') {
-                    resolve(graphDef)
+                    resolve(graphDef);
                 }
             } else {
-                reject(Error("request failed: " + res.statusCode))
+                reject(Error("request failed: " + res.statusCode));
             }
-        })
+        });
     });
 }
 
-var kscPath = path.join(__dirname, 'ksc.xml')
+var kscPath = path.join(__dirname, 'ksc.xml');
 console.log('Reading ' + kscPath);
 
 var reportsList = [];
