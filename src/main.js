@@ -1,7 +1,18 @@
 /* 
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Copyright (C) 2016 Ronald J. Roskens <ronald.roskens@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 var path = require('path'),
@@ -9,8 +20,9 @@ var path = require('path'),
     vm = require('vm'),
     fs = require('fs'),
     xml2js = require('xml2js'),
-    request = require('request'),
-    _ = require('lodash');
+    request = require('request');
+
+global._ = require('lodash');
 
 var graphCache = {};
 
@@ -19,104 +31,16 @@ var includeInThisContext = function (path) {
     vm.runInThisContext(code, path);
 }.bind(this);
 includeInThisContext(path.join(__dirname, "backshift.js"));
-
-function createPanel(title, pId) {
-    //console.log('======== panel: ' + title + ' ========')
-    return {
-        "aliasColors": {},
-        "bars": false,
-        "datasource": "${DS_OPENNMS}",
-        "editable": false,
-        "error": false,
-        "fill": 0,
-        "grid": {
-            "threshold1": null,
-            "threshold1Color": "rgba(216, 200, 27, 0.27)",
-            "threshold2": null,
-            "threshold2Color": "rgba(234, 112, 112, 0.22)"
-        },
-        "id": pId,
-        "isNew": true,
-        "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-        },
-        "lines": true,
-        "linewidth": 2,
-        "links": [],
-        "nullPointMode": "connected",
-        "percentage": false,
-        "pointradius": 5,
-        "points": false,
-        "renderer": "flot",
-        "seriesOverrides": [],
-        "span": 6,
-        "stack": false,
-        "steppedLine": false,
-        "targets": [
-        ],
-        "timeFrom": null,
-        "timeShift": null,
-        "title": title,
-        "tooltip": {
-            "msResolution": true,
-            "shared": true,
-            "sort": 0,
-            "value_type": "cumulative"
-        },
-        "type": "graph",
-        "xaxis": {
-            "show": true
-        },
-        "yaxes": [
-            {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-            },
-            {
-                "format": "short",
-                "label": null,
-                "logBase": 1,
-                "max": null,
-                "min": null,
-                "show": true
-            }
-        ]
-    };
-}
-
-function createRow() {
-    //console.log('======== row ========')
-    return {
-        "collapse": false,
-        "editable": true,
-        // "height": 493,
-        "panels": [],
-        "title": "Row"
-    };
-}
+includeInThisContext(path.join(__dirname, "Dashboard.js"));
+includeInThisContext(path.join(__dirname, "Panel.js"));
+includeInThisContext(path.join(__dirname, "Row.js"));
 
 var nodeRE = new RegExp('^(node\\[\\d+\\])\\.(.*)$');
 var fsRE = new RegExp('^node\\[(\\S+?)\\]\\.(.*)$');
 
 function addPanelToDashboardRow(dashboard, graphs_per_line, graph, graphDef, pId) {
     console.log('==== addPanelToDashboardRow ====');
-    //console.dir(graphDef);
-    //console.dir(dashboard.dashboard);
-    var row = _.last(dashboard.rows);
-    if (typeof row === 'undefined') {
-        row = createRow();
-        dashboard.rows.push(row);
-    }
+    var row = dashboard.lastRow();
 
     var rrdGraphConverter = new Backshift.Utilities.RrdGraphConverter({
         graphDef: graphDef,
@@ -125,13 +49,14 @@ function addPanelToDashboardRow(dashboard, graphs_per_line, graph, graphDef, pId
     var model = rrdGraphConverter.model;
     console.log('==== model ====');
     console.dir(model);
-    panel = createPanel(graph['$']['title'], pId);
+    panel = new Panel(graph['$']['title']);
+    panel.setId(pId);
 
     // metrics & series arrays to look at.
     // 
     _.forEach(model.metrics, function (metric, key) {
         //console.log('==== metric ====')
-        //console.dir(metric)
+        //console.dir(series)
         if ('attribute' in metric) {
             //console.log('metric.resourceId:' + metric.resourceId)
             var reMatch = nodeRE.exec(metric.resourceId);
@@ -168,15 +93,11 @@ function addPanelToDashboardRow(dashboard, graphs_per_line, graph, graphDef, pId
             });
         }
     });
-    row.panels.push(panel);
-    //console.log('== panel ==')
-    //console.dir(panel);
-    //console.log('== row ==')
-    //console.dir(row);
+    row.addPanel(panel);
 
     if (graphs_per_line === 0) {
         dashboard.rows.push(row);
-        row = createRow();
+        row = new Row("Row");
     }
 }
 
@@ -206,56 +127,22 @@ function getGraphDefinition(name) {
 }
 
 function buildDashboard(report, graphs, graphDefs) {
-    var dashboard = {
-        "id": null,
-        "title": report['title'],
-        "tags": ["ksc-performance-report"],
-        "timezone": "browser",
-        "rows": [],
-        "templating": {"list": []},
-        "annotations": {"list": []},
-        "schemaVersion": 12,
-        "version": 0,
-        "__inputs": [
-            {
-                "name": "DS_OPENNMS",
-                "label": "OpenNMS",
-                "description": "",
-                "type": "datasource",
-                "pluginId": "opennms-datasource",
-                "pluginName": "OpenNMS"
-            }
-        ],
-        "__requires": [
-            {
-                "type": "panel",
-                "id": "graph",
-                "name": "Graph",
-                "version": ""
-            },
-            {
-                "type": "grafana",
-                "id": "grafana",
-                "name": "Grafana",
-                "version": "3.1.0"
-            },
-            {
-                "type": "datasource",
-                "id": "opennms",
-                "name": "OpenNMS",
-                "version": "2.0.1"
-            }
-        ]
-    };
+    console.log(">>>> buildDashboard");
+    console.log("report: ", report);
+    var dashboard = new Dashboard( report['title'] );
+    dashboard.addTag("ksc-performance-report");
+    var graphs_per_line = report['graphs_per_line'] === 'undefined' ? 1 : report['graphs_per_line'] ;
 
-    var pId = 1;
+    var panelId = 1;
     _.forEach(graphs, function (graph, key) {
-        addPanelToDashboardRow(dashboard, report['graphs_per_line'], graph, graphDefs[graph['$']['graphtype']], pId++);
+        if(report['graphs_per_line'])
+        addPanelToDashboardRow(dashboard, report['graphs_per_line'], graph, graphDefs[graph['$']['graphtype']], panelId++);
     });
     console.log('writing out file:' + report['title'] + '.json');
-    fs.writeFile(report['title'] + '.json', JSON.stringify(dashboard, null, 2));
+    fs.writeFileSync(report['title'] + '.json', dashboard.toJson());
 
-    // console.log('-- end buildDashboard <' + report['title'] + '> --');
+    console.log('<<<< buildDashboard <' + report['title'] + '> --');
+    return;
 }
 
 function collectGraphTypes(reportDefinition) {
@@ -309,7 +196,7 @@ function fetchGraphType(graphType) {
     });
 }
 
-var kscPath = path.join(__dirname, 'ksc.xml');
+var kscPath = 'ksc.xml';
 console.log('Reading ' + kscPath);
 
 var reportsList = [];

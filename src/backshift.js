@@ -696,7 +696,8 @@ Backshift.Utilities.RpnToJexlConverter = Backshift.Class.create({
     this.operators['INF'] = function() { return '__inf'; };
     this.operators['NEGINF'] = function() { return '__neg_inf'; };
     this.operators['{diffTime}'] = function() { return '(__diff_time / 1000)'; };
-
+    this.operators['{startTime}'] = function() { return '(__start_time / 1000)'; };
+    this.operators['{endTime}'] = function() { return '(__end_time / 1000)'; };
   },
 
   convert: function (rpn) {
@@ -778,10 +779,10 @@ Backshift.Utilities.RpnEvaluator = Backshift.Class.create({
       if (val === Number.POSITIVE_INFINITY || val === Number.NEGATIVE_INFINITY) {
         return NaN;
       }
-      if (min == Number.POSITIVE_INFINITY || min === Number.NEGATIVE_INFINITY) {
+      if (min === Number.POSITIVE_INFINITY || min === Number.NEGATIVE_INFINITY) {
         return NaN;
       }
-      if (max == Number.POSITIVE_INFINITY || max === Number.NEGATIVE_INFINITY) {
+      if (max === Number.POSITIVE_INFINITY || max === Number.NEGATIVE_INFINITY) {
         return NaN;
       }
       if (val < min || val > max) {
